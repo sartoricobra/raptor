@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Verifica se está sendo executado como root
+if [[ $EUID -ne 0 ]]; then
+   echo "Este script deve ser executado como root. Use sudo." 
+   exit 1
+fi
+
+# 1 - Pergunta o nome do cliente
+read -p "Digite o nome do cliente: " cliente
+
+# Remove espaços e converte para minúsculas
+cliente=$(echo "$cliente" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+
+# Verifica se o nome do cliente não está vazio
+if [[ -z "$cliente" ]]; then
+    echo "Erro: Nome do cliente não pode estar vazio."
+    exit 1
+fi
+
+# Garante que o diretório /Dados existe
+if [[ ! -d "/Dados" ]]; then
+    echo "Criando diretório base /Dados..."
+    mkdir -p /Dados || { echo "Erro ao criar o diretório base /Dados"; exit 1; }
+fi
+
+# 2 - Cria o diretório do cliente
+diretorio="/Dados/$cliente"
+if [[ ! -d "$diretorio" ]]; then
+    echo "Criando diretório $diretorio..."
+    mkdir -p "$diretorio" || { echo "Erro ao criar o diretório $diretorio"; exit 1; }
+    chmod 777 "$diretorio" || { echo "Erro ao aplicar permissões no diretório $diretorio"; exit 1; }
+else
+    echo "Aviso: O diretório $diretorio já existe."
+fi
+
+# 3 - Adiciona a linha no /etc/exports se ainda não estiver lá
+linha="$diretorio   192.168.30.49/32(rw,sync,no_root_squash,no_subtree_check)"
+if grep -q "^$diretorio" /etc/exports; then
+    echo "Aviso: Já existe uma entrada para $diretorio em /etc/exports"
+else
+    echo "$linha" >> /etc/exports || { echo "Erro ao escrever no /etc/exports"; exit 1; }
+fi
+
+# 4 - Atualiza exportações e reinicia o serviço
+exportfs -ra || { echo "Erro ao executar exportfs -ra"; exit 1; }
+systemctl restart nfs-server || { echo "Erro ao reiniciar o serviço nfs-server"; exit 1; }
+
+# 5 - Mensagem de sucesso
+echo "Configuração concluída com sucesso para o cliente '$cliente'."
