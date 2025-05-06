@@ -7,7 +7,12 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # 1 - Pergunta o nome do cliente
-read -p "Digite o nome do cliente: " cliente
+cliente=$1
+if [[ -z "$cliente" ]]; then
+    echo "Erro: informe o nome do cliente como argumento."
+    exit 1
+fi
+
 
 # Remove espaços e converte para minúsculas
 cliente=$(echo "$cliente" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
